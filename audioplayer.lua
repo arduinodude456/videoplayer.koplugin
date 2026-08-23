@@ -71,6 +71,25 @@ function AudioPlayer:is_available()
     return self.command ~= nil
 end
 
+-- Berechnet die tatsächliche Abspieldauer der WAV-Datei in Sekunden aus dem
+-- Header (Datenbytes geteilt durch die Byte-Rate = Samplerate * Blockalign).
+function AudioPlayer:get_duration_seconds()
+    local input = io.open(self.path, "rb")
+    if not input then return nil, "WAV-Datei nicht gefunden: " .. self.path end
+    local header = input:read(44)
+    input:close()
+    if not header or #header ~= 44 or header:sub(1, 4) ~= "RIFF" or header:sub(9, 12) ~= "WAVE" then
+        return nil, "Ungültiger WAV-Header."
+    end
+    local sample_rate = u32(header, 25)
+    local block_align = u16(header, 33)
+    local data_bytes = u32(header, 41)
+    if sample_rate < 1 or block_align < 1 or data_bytes < 1 then
+        return nil, "Ungültige WAV-Parameter."
+    end
+    return data_bytes / (sample_rate * block_align)
+end
+
 function AudioPlayer:get_error()
     if self.command then return nil end
     return "Kein unterstützter WAV-Audiopfad gefunden: auf dem Libra Colour wird "
