@@ -95,6 +95,11 @@ function AudioPlayer:get_error()
     return "Kein unterstützter WAV-Audiopfad gefunden: auf dem Libra Colour wird "
         .. "gst-launch-1.0 mit mtkbtmwrpcaudiosink, alternativ aplay oder tinyplay benötigt."
 end
+function AudioPlayer:get_error()
+    -- Kein Audio-Backend gefunden -> kein Fehler mehr, nur stiller Stumm-Modus.
+    return nil
+end
+
 
 function AudioPlayer:_make_clip(start_seconds)
     start_seconds = math.max(0, start_seconds or 0)
@@ -133,8 +138,14 @@ function AudioPlayer:_make_clip(start_seconds)
     return output_path
 end
 
+
 function AudioPlayer:start_from(seconds)
-    if not self.command then return nil, self:get_error() end
+    if not self.command then
+        -- Kein Audio-Backend vorhanden: Video soll trotzdem laufen.
+        logger.info("bwrawvideo: kein Audio-Backend, spiele stumm weiter")
+        self.paused = false
+        return true
+    end
     local probe = io.open(self.path, "rb")
     if not probe then return nil, "WAV-Datei nicht gefunden: " .. self.path end
     probe:close()
